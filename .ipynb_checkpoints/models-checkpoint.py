@@ -1,24 +1,60 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import *
+import numpy as np
 
-def Actor(obs_dim,action_dim):
-    obs = Input(obs_dim)
-    l2 = Dense(128)(obs)
-    #l3 = Dense(128)(l2)
-    outputs = Dense(action_dim)(l2)
+def encoder(input_size, latent_dim = 100, layers = 2):
+    inputs = Input(input_size)
     
-    model = Model(inputs=[obs], outputs=[outputs])
+    conv = Conv2D(1, (5, 5), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
+    for i in range(1,layers+1):
+        conv = Conv2D(np.power(2,i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = Dropout(0.1) (conv)
+        conv = Conv2D(np.power(2,i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = MaxPooling2D((2, 2)) (conv)
+    dense = Flatten()(conv)
+    outputs = Dense(latent_dim)(dense)        
+            
+    model = Model(inputs = inputs, outputs = outputs)
+        
     return model
 
-def Critic(obs_dim,action_dim):
-    obs = Input(obs_dim)
-    action = Input(action_dim)
-    l2 = Dense(128)(obs)
-    cat = concatenate([l2,action])
-    l3 = Dense(8)(cat)
-    #l4 = Dense(300)(l3)
-    outputs = Dense(1)(l3)
+
+
+def decoder(output_size, latent_dim = 100, layers = 2):
+
+    inputs = Input((latent_dim,))
+    dense = Dense(output_size[0]*2**-layers* output_size[1]*2**-layers*2**layers)(inputs)
     
-    model = Model(inputs=[obs,action], outputs=[outputs])
+    conv = Reshape((int(output_size[0]*2**-layers), int(output_size[1]*2**-layers), int(2**layers)))(dense)
+    for i in range(1,layers+1):
+        conv = Conv2DTranspose(np.power(2,layers-i), (3, 3), strides=(2, 2), padding='same') (conv)
+        conv = Conv2D(np.power(2,layers-i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = Dropout(0.1) (conv)
+        conv = Conv2D(np.power(2,layers-i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+    conv = Conv2D(1, (3, 3), kernel_initializer='he_normal', padding='same') (conv)
+
+
+    model = Model(inputs = inputs, outputs = conv)
+
+
+    return model
+
+def agent(obs_dim, hidden_dim ,action_dim):
+    
+    input = Input((obs_dim,))
+    x = Dense(hidden_dim)(input)
+    x = Dense(hidden_dim)(x)
+
+    advantage = Dense(hidden_dim, activation="relu")(input)
+    advantage = Dense(action_dim)(advantage)
+    
+    advantage_norm = Lambda(lambda x: x - tf.reduce_mean(x))(advantage)
+    
+    value = Dense(hidden_dim, activation="relu")(input)
+    value = Dense(1)(value)
+    
+    out = Add()([value, advantage_norm])
+
+    model = Model(inputs=input, outputs=out)
     return model
