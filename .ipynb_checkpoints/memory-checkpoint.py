@@ -17,14 +17,15 @@ class replay_buffer:
     
 class frame_stack:
     def __init__(self, max_size, frame_shape):
+        self.stack_size = max_size
         self.stacked_frames = deque([np.zeros(frame_shape, dtype=np.int) for i in range(max_size)], maxlen=max_size)
         
-    def query(self, state, done):
-        if(done):
-            for i in range(stack_size-1):
-                stacked_frames.append(state)
+    def query(self, state, new):
+        if(new):
+            for i in range(self.stack_size-1):
+                self.stacked_frames.append(state)
                 
-        stacked_frames.append(state)
-        stacked_state = np.stack(stacked_frames, axis=2) 
+        self.stacked_frames.append(state)
+        stacked_state = np.stack(self.stacked_frames, axis=2) 
         return stacked_state
        

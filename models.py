@@ -6,11 +6,11 @@ import numpy as np
 def encoder(input_size, latent_dim = 100, layers = 2):
     inputs = Input(input_size)
     
-    conv = Conv2D(1, (5, 5), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
+    conv = Conv2D(input_size[2], (5, 5), activation='elu', kernel_initializer='he_normal', padding='same') (inputs)
     for i in range(1,layers+1):
-        conv = Conv2D(np.power(2,i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = Conv2D(np.max((np.power(2,i),input_size[2])), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
         conv = Dropout(0.1) (conv)
-        conv = Conv2D(np.power(2,i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = Conv2D(np.max((np.power(2,i),input_size[2])), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
         conv = MaxPooling2D((2, 2)) (conv)
     dense = Flatten()(conv)
     outputs = Dense(latent_dim)(dense)        
@@ -28,11 +28,11 @@ def decoder(output_size, latent_dim = 100, layers = 2):
     
     conv = Reshape((int(output_size[0]*2**-layers), int(output_size[1]*2**-layers), int(2**layers)))(dense)
     for i in range(1,layers+1):
-        conv = Conv2DTranspose(np.power(2,layers-i), (3, 3), strides=(2, 2), padding='same') (conv)
-        conv = Conv2D(np.power(2,layers-i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+        conv = Conv2DTranspose(np.max((np.power(2,layers-i),output_size[2])), (3, 3), strides=(2, 2), padding='same') (conv)
+        conv = Conv2D(np.max((np.power(2,layers-i),output_size[2])), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
         conv = Dropout(0.1) (conv)
-        conv = Conv2D(np.power(2,layers-i), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
-    conv = Conv2D(1, (3, 3), kernel_initializer='he_normal', padding='same') (conv)
+        conv = Conv2D(np.max((np.power(2,layers-i),output_size[2])), (3, 3), activation='elu', kernel_initializer='he_normal', padding='same') (conv)
+    conv = Conv2D(output_size[2], (3, 3), activation='sigmoid', kernel_initializer='he_normal', padding='same') (conv)
 
 
     model = Model(inputs = inputs, outputs = conv)
@@ -58,3 +58,11 @@ def agent(obs_dim, hidden_dim ,action_dim):
 
     model = Model(inputs=input, outputs=out)
     return model
+
+def combine(input_size, model1, model2):
+    inputs = Input(input_size) 
+    first = model1()(inputs)
+    second = model2()(first)
+    model = Model(inputs=input, outputs=second)
+    return model
+    
